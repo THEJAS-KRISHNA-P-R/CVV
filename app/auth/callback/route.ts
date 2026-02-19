@@ -46,6 +46,11 @@ export async function GET(request: Request) {
         } else if (profile?.role === 'worker') {
           return NextResponse.redirect(`${origin}/worker/dashboard`)
         }
+
+        // Guard: prevent non-workers from landing in the worker portal
+        if (next.startsWith('/worker') && profile?.role !== 'worker' && profile?.role !== 'admin') {
+          return NextResponse.redirect(`${origin}/worker/login?error=not_a_worker`)
+        }
       }
 
       return NextResponse.redirect(`${origin}${next}`)
