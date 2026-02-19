@@ -2,13 +2,20 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, MoreVertical, ShoppingBag } from 'lucide-react'
+import { format, isToday, isYesterday } from 'date-fns'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { MoreHorizontal, Trash2, Send, MoreVertical, ShoppingBag } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { format } from 'date-fns'
 
 interface ChatWindowProps {
     currentUserId: string
@@ -24,6 +31,7 @@ interface Message {
     created_at: string
     is_read: boolean
     marketplace_item_id?: string
+    is_deleted?: boolean // Add is_deleted field
 }
 
 interface UserProfile {
@@ -55,47 +63,37 @@ export function ChatWindow({ currentUserId, otherUserId, initialItemId }: ChatWi
         // Realtime subscription
         console.log(`Subscribing to chat updates for user ${currentUserId} with ${otherUserId}`)
         const channel = supabase
-            .channel(`chat_debug:${currentUserId}`) // Use a unique channel for debugging
+            .channel(`chat_debug:${currentUserId}`)
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Listen to ALL events (INSERT, UPDATE, DELETE)
                     schema: 'public',
                     table: 'chats',
-                    // removing server-side filter to debug connectivity - receiving ALL chats
                 },
                 (payload) => {
                     console.log('Realtime payload received:', payload)
                     const newMsg = payload.new as Message
+                    const oldMsg = payload.old as Message
 
-                    // Debug logs
-                    console.log('New ID:', newMsg.id)
-                    console.log('Sender:', newMsg.sender_id)
-                    console.log('Receiver:', newMsg.receiver_id)
-                    console.log('Expected Receiver:', currentUserId)
-                    console.log('Expected Sender:', otherUserId)
+                    if (payload.eventType === 'INSERT') {
+                        // Filter client-side
+                        const isRelevant =
+                            (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId) ||
+                            (newMsg.sender_id === currentUserId && newMsg.receiver_id === otherUserId)
 
-                    // Filter client-side
-                    // 1. Incoming message: Sender is Other, Receiver is Me
-                    // 2. Outgoing message (sync): Sender is Me, Receiver is Other (e.g. from another tab/device)
-                    const isRelevant =
-                        (newMsg.sender_id === otherUserId && newMsg.receiver_id === currentUserId) ||
-                        (newMsg.sender_id === currentUserId && newMsg.receiver_id === otherUserId)
-
-                    if (isRelevant) {
-                        console.log('Message is relevant, adding to state.')
-                        setMessages((prev) => {
-                            // Deduplicate
-                            if (prev.some((m) => m.id === newMsg.id)) return prev
-                            return [...prev, newMsg]
-                        })
-
-                        // If we just received a message, mark it as read immediately
-                        if (newMsg.receiver_id === currentUserId) {
-                            markAsRead()
+                        if (isRelevant) {
+                            setMessages((prev) => {
+                                if (prev.some((m) => m.id === newMsg.id)) return prev
+                                return [...prev, newMsg]
+                            })
+                            if (newMsg.receiver_id === currentUserId) markAsRead()
                         }
-                    } else {
-                        console.log('Message is NOT relevant to this conversation.')
+                    } else if (payload.eventType === 'UPDATE') {
+                        // Handle updates (e.g. deletion, read status)
+                        setMessages((prev) =>
+                            prev.map((msg) => (msg.id === newMsg.id ? { ...msg, ...newMsg } : msg))
+                        )
                     }
                 }
             )
@@ -107,6 +105,27 @@ export function ChatWindow({ currentUserId, otherUserId, initialItemId }: ChatWi
             supabase.removeChannel(channel)
         }
     }, [currentUserId, otherUserId, initialItemId])
+
+    async function handleDeleteMessage(messageId: string) {
+        // Optimistic update
+        setMessages((prev) =>
+            prev.map((msg) => (msg.id === messageId ? { ...msg, is_deleted: true } : msg))
+        )
+
+        try {
+            const { error } = await supabase
+                .from('chats')
+                .update({ is_deleted: true })
+                .eq('id', messageId)
+
+            if (error) throw error
+        } catch (error) {
+            console.error('Error deleting message:', error)
+            toast.error('Failed to delete message')
+            // Rollback (re-fetch or manual revert)
+            fetchMessages() // Easiest rollback
+        }
+    }
 
     useEffect(() => {
         // Scroll to bottom on new message
@@ -252,29 +271,83 @@ export function ChatWindow({ currentUserId, otherUserId, initialItemId }: ChatWi
             {/* Messages */}
             <ScrollArea className="flex-1 p-4">
                 <div className="flex flex-col gap-3">
-                    {messages.map((msg) => {
+                    {messages.map((msg, index) => {
                         const isMe = msg.sender_id === currentUserId
+                        const messageDate = new Date(msg.created_at)
+                        const prevMessage = messages[index - 1]
+                        const prevMessageDate = prevMessage ? new Date(prevMessage.created_at) : null
+
+                        let showDateHeader = false
+                        if (!prevMessageDate ||
+                            messageDate.toDateString() !== prevMessageDate.toDateString()) {
+                            showDateHeader = true
+                        }
+
+                        let dateLabel = format(messageDate, 'MMMM d, yyyy')
+                        if (isToday(messageDate)) dateLabel = 'Today'
+                        else if (isYesterday(messageDate)) dateLabel = 'Yesterday'
+
                         return (
-                            <div
-                                key={msg.id}
-                                className={cn(
-                                    'flex flex-col max-w-[80%]',
-                                    isMe ? 'self-end items-end' : 'self-start items-start'
+                            <div key={msg.id} className="flex flex-col w-full">
+                                {showDateHeader && (
+                                    <div className="flex justify-center my-4">
+                                        <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded-full">
+                                            {dateLabel}
+                                        </span>
+                                    </div>
                                 )}
-                            >
                                 <div
                                     className={cn(
-                                        'px-4 py-2 rounded-lg text-sm',
-                                        isMe
-                                            ? 'bg-primary text-primary-foreground rounded-br-none'
-                                            : 'bg-muted text-foreground rounded-bl-none'
+                                        'flex flex-col max-w-[80%] group relative',
+                                        isMe ? 'self-end items-end' : 'self-start items-start'
                                     )}
                                 >
-                                    {msg.message}
+                                    <div
+                                        className={cn(
+                                            'px-4 py-2 rounded-lg text-sm',
+                                            isMe
+                                                ? 'bg-primary text-primary-foreground rounded-br-none'
+                                                : 'bg-muted text-foreground rounded-bl-none',
+                                            msg.is_deleted && 'italic text-muted-foreground bg-muted/50'
+                                        )}
+                                    >
+                                        {msg.is_deleted ? (
+                                            <span className="flex items-center gap-2">
+                                                <Trash2 className="w-3 h-3" />
+                                                This message was deleted
+                                            </span>
+                                        ) : (
+                                            msg.message
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-1 mt-1">
+                                        <span className="text-[10px] text-muted-foreground px-1">
+                                            {format(new Date(msg.created_at), 'h:mm a')}
+                                        </span>
+                                        {isMe && !msg.is_deleted && (
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <MoreHorizontal className="w-3 h-3" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleDeleteMessage(msg.id)}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        )}
+                                    </div>
                                 </div>
-                                <span className="text-[10px] text-muted-foreground mt-1 px-1">
-                                    {format(new Date(msg.created_at), 'h:mm a')}
-                                </span>
                             </div>
                         )
                     })}

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ShoppingCart, MessageCircle, MapPin, Search } from 'lucide-react'
+import { ShoppingCart, MessageCircle, MapPin, Search, MoreVertical, Pencil, Trash2, Tag } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
 import { Input } from '@/components/ui/input'
@@ -15,20 +15,17 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { toast } from 'sonner'
+import { MarketplaceItem } from '@/types/marketplace'
+import { MarketplaceItemDialog } from './create-item-dialog'
 
-interface MarketplaceItem {
-    id: string
-    title: string
-    description: string
-    category: string
-    quantity: string
-    price: number
-    is_free: boolean
-    fuzzy_location: string
-    created_at: string
-    user_id: string
-    images: string[]
-}
 
 export function MarketplaceList() {
     const [items, setItems] = useState<MarketplaceItem[]>([])
@@ -36,13 +33,17 @@ export function MarketplaceList() {
     const [searchTerm, setSearchTerm] = useState('')
     const [categoryFilter, setCategoryFilter] = useState('all')
 
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+    const [editingItem, setEditingItem] = useState<MarketplaceItem | null>(null)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+
     const supabase = createClient()
     const router = useRouter()
 
     useEffect(() => {
+        fetchUser()
         fetchItems()
 
-        // Realtime subscription
         const channel = supabase
             .channel('marketplace_items_changes')
             .on(
@@ -58,7 +59,13 @@ export function MarketplaceList() {
                     } else if (payload.eventType === 'DELETE') {
                         setItems((prev) => prev.filter((item) => item.id !== payload.old.id))
                     } else if (payload.eventType === 'UPDATE') {
-                        setItems((prev) => prev.map((item) => item.id === payload.new.id ? payload.new as MarketplaceItem : item))
+                        setItems((prev) => {
+                            // If marked unavailable (sold/deleted logic), remove from list
+                            if (payload.new.is_available === false) {
+                                return prev.filter(item => item.id !== payload.new.id)
+                            }
+                            return prev.map((item) => item.id === payload.new.id ? payload.new as MarketplaceItem : item)
+                        })
                     }
                 }
             )
@@ -68,6 +75,13 @@ export function MarketplaceList() {
             supabase.removeChannel(channel)
         }
     }, [])
+
+    async function fetchUser() {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+            setCurrentUserId(user.id)
+        }
+    }
 
     async function fetchItems() {
         setLoading(true)
@@ -95,13 +109,56 @@ export function MarketplaceList() {
     })
 
     const handleChat = (sellerId: string, itemId: string) => {
-        // Navigate to chat with pre-filled context
-        // We'll initiate the chat in the Chat page logic
         router.push(`/chat?userId=${sellerId}&itemId=${itemId}`)
+    }
+
+    const handleDelete = async (itemId: string) => {
+        if (!confirm('Are you sure you want to delete this listing?')) return
+        try {
+            const { error } = await supabase
+                .from('marketplace_items')
+                .delete() // Actually deleting for now, or could set is_available=false
+                .eq('id', itemId)
+
+            if (error) throw error
+            toast.success('Listing deleted')
+            // Realtime will update UI, but fallback:
+            setItems(prev => prev.filter(i => i.id !== itemId))
+        } catch (error) {
+            console.error('Error deleting item', error)
+            toast.error('Failed to delete listing')
+        }
+    }
+
+    const handleMarkSold = async (itemId: string) => {
+        try {
+            const { error } = await supabase
+                .from('marketplace_items')
+                .update({ is_available: false })
+                .eq('id', itemId)
+
+            if (error) throw error
+            toast.success('Marked as sold')
+            setItems(prev => prev.filter(i => i.id !== itemId))
+        } catch (error) {
+            console.error('Error updating item', error)
+            toast.error('Failed to update listing')
+        }
     }
 
     return (
         <div className="space-y-6">
+            <MarketplaceItemDialog
+                open={editDialogOpen}
+                onOpenChange={setEditDialogOpen}
+                itemToEdit={editingItem || undefined}
+                onSuccess={() => {
+                    setEditingItem(null)
+                    setEditDialogOpen(false)
+                    fetchItems() // Refresh to be safe
+                }}
+            />
+
             {/* Filters */}
             <div className="flex flex-col md:flex-row gap-3">
                 <div className="flex-1 relative">
@@ -140,7 +197,7 @@ export function MarketplaceList() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredItems.map((item) => (
-                        <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow bg-card">
+                        <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow bg-card flex flex-col">
                             <div className="aspect-video bg-muted flex items-center justify-center relative">
                                 {item.images && item.images.length > 0 ? (
                                     <div
@@ -156,8 +213,35 @@ export function MarketplaceList() {
                                 <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
                                     {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
                                 </div>
+
+                                {currentUserId === item.user_id && (
+                                    <div className="absolute top-2 left-2">
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full bg-black/60 text-white hover:bg-black/80">
+                                                    <MoreVertical className="h-3 w-3" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start">
+                                                <DropdownMenuItem onClick={() => {
+                                                    setEditingItem(item)
+                                                    setEditDialogOpen(true)
+                                                }}>
+                                                    <Pencil className="w-4 h-4 mr-2" /> Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleMarkSold(item.id)}>
+                                                    <Tag className="w-4 h-4 mr-2" /> Mark as Sold
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem onClick={() => handleDelete(item.id)} className="text-destructive">
+                                                    <Trash2 className="w-4 h-4 mr-2" /> Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                )}
                             </div>
-                            <div className="p-4 space-y-3">
+                            <div className="p-4 space-y-3 flex-1 flex flex-col">
                                 <div>
                                     <div className="flex justify-between items-start">
                                         <h3 className="font-semibold text-lg line-clamp-1">{item.title}</h3>
@@ -179,15 +263,20 @@ export function MarketplaceList() {
                                     {item.description || "No description provided."}
                                 </p>
 
-                                <div className="pt-2 flex gap-2">
-                                    {/* We might want to disable this if it's the user's own item, handled better with auth context */}
-                                    <Button
-                                        className="flex-1 gap-2"
-                                        onClick={() => handleChat(item.user_id, item.id)}
-                                    >
-                                        <MessageCircle className="w-4 h-4" />
-                                        Chat
-                                    </Button>
+                                <div className="pt-2 flex gap-2 mt-auto">
+                                    {currentUserId !== item.user_id ? (
+                                        <Button
+                                            className="flex-1 gap-2"
+                                            onClick={() => handleChat(item.user_id, item.id)}
+                                        >
+                                            <MessageCircle className="w-4 h-4" />
+                                            Chat
+                                        </Button>
+                                    ) : (
+                                        <Button variant="outline" className="flex-1 cursor-default opacity-50">
+                                            Your Listing
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </Card>
