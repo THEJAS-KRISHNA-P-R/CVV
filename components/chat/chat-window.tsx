@@ -197,7 +197,15 @@ export function ChatWindow({ currentUserId, otherUserId, initialItemId }: ChatWi
             if (error) throw error
 
             // Replace optimistic message
-            setMessages((prev) => prev.map((m) => (m.id === optimisticMsg.id ? data : m)))
+            setMessages((prev) => {
+                // If the real message (data.id) is ALREADY in the list (from realtime),
+                // we should just remove the optimistic one to avoid duplicates.
+                if (prev.some((m) => m.id === data.id)) {
+                    return prev.filter((m) => m.id !== optimisticMsg.id)
+                }
+                // Otherwise, replace optimistic with real
+                return prev.map((m) => (m.id === optimisticMsg.id ? data : m))
+            })
         } catch (error) {
             console.error('Error sending message:', error)
             // Rollback
