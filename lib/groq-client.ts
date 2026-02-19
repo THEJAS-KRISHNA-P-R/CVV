@@ -3,7 +3,8 @@
  * Analyzes images to classify waste as Wet, Dry, or Hazardous
  */
 
-import Groq from '@groq/sdk'
+// @ts-ignore
+import Groq from 'groq-sdk'
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
