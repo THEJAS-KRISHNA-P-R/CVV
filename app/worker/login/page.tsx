@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Leaf, Mail, Loader2, Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Truck, Mail, Loader2, Eye, EyeOff, ArrowRight, Leaf } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -36,7 +37,7 @@ function GoogleLogo({ className }: { className?: string }) {
   )
 }
 
-export default function LoginPage() {
+export default function WorkerLoginPage() {
   const router = useRouter()
   const supabase = createClient()
   
@@ -59,17 +60,26 @@ export default function LoginPage() {
       })
 
       if (authError) {
-        if (authError.message.includes('Invalid login credentials')) {
-          setError('Invalid email or password. Please try again.')
-        } else {
-          setError(authError.message)
-        }
+        setError('Invalid credentials. Please try again.')
         return
       }
 
       if (data.user) {
-        toast.success('Welcome back!')
-        router.push('/dashboard')
+        // Verify user is a worker
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
+
+        if (profile?.role !== 'worker' && profile?.role !== 'admin') {
+          await supabase.auth.signOut()
+          setError('Access denied. HKS Worker credentials required.')
+          return
+        }
+
+        toast.success('Welcome back! Ready for your route.')
+        router.push('/worker/dashboard')
         router.refresh()
       }
     } catch (err) {
@@ -87,7 +97,7 @@ export default function LoginPage() {
       const { error: authError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/worker/dashboard`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -99,7 +109,6 @@ export default function LoginPage() {
         setError(authError.message)
         setGoogleLoading(false)
       }
-      // If successful, the user will be redirected to Google
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to initiate Google login')
       setGoogleLoading(false)
@@ -107,33 +116,35 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 dark:from-gray-950 dark:via-green-950 dark:to-emerald-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-950 via-amber-950 to-yellow-950 flex items-center justify-center p-4">
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-200/30 dark:bg-green-800/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-200/30 dark:bg-emerald-800/20 rounded-full blur-3xl" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-yellow-500/5 rounded-full blur-3xl" />
       </div>
 
       <div className="w-full max-w-md relative z-10">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-2.5 bg-primary/10 rounded-xl">
-              <Leaf className="w-8 h-8 text-primary" />
+            <div className="p-2.5 bg-orange-500/20 rounded-xl border border-orange-500/30">
+              <Leaf className="w-8 h-8 text-orange-400" />
             </div>
-            <h1 className="text-3xl font-bold tracking-tight">Nirman</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white">Nirman</h1>
           </div>
-          <p className="text-muted-foreground text-sm">
-            Kerala&apos;s Smart Waste Management System
-          </p>
+          <Badge variant="outline" className="border-orange-500/50 text-orange-300 bg-orange-500/10">
+            <Truck className="w-3 h-3 mr-1" />
+            HKS Worker Portal
+          </Badge>
         </div>
 
         {/* Login Card */}
-        <Card className="shadow-xl border-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
+        <Card className="shadow-2xl border-0 bg-slate-900/80 backdrop-blur-xl border border-white/10">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
-            <CardDescription>
-              Sign in to manage your household waste collection
+            <CardTitle className="text-2xl font-semibold text-white">Worker Sign In</CardTitle>
+            <CardDescription className="text-slate-400">
+              Access your collection routes and tasks
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -141,7 +152,7 @@ export default function LoginPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 text-base font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 border-gray-300 dark:border-gray-600"
+              className="w-full h-12 text-base font-medium bg-white hover:bg-gray-100 text-gray-900 border-0"
               onClick={handleGoogleLogin}
               disabled={googleLoading || loading}
             >
@@ -156,11 +167,11 @@ export default function LoginPage() {
             {/* Divider */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <Separator className="w-full" />
+                <Separator className="w-full bg-white/10" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-gray-900 px-2 text-muted-foreground">
-                  or continue with email
+                <span className="bg-slate-900 px-2 text-slate-500">
+                  or use credentials
                 </span>
               </div>
             </div>
@@ -168,42 +179,34 @@ export default function LoginPage() {
             {/* Email Login Form */}
             <form onSubmit={handleEmailLogin} className="space-y-4">
               {error && (
-                <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm p-3 rounded-lg border border-red-200 dark:border-red-800">
+                <div className="bg-red-500/10 text-red-400 text-sm p-3 rounded-lg border border-red-500/20">
                   {error}
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email address
+                <Label htmlFor="email" className="text-sm font-medium text-slate-300">
+                  Worker Email / ID
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                   <Input
                     id="email"
                     type="email"
-                    placeholder="you@example.com"
+                    placeholder="worker@hks.kerala.gov.in"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={loading || googleLoading}
-                    className="pl-10 h-11"
+                    className="pl-10 h-11 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-orange-500"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </Label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+                <Label htmlFor="password" className="text-sm font-medium text-slate-300">
+                  Password
+                </Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -212,13 +215,13 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={loading || googleLoading}
-                    className="pr-10 h-11"
+                    className="pr-10 h-11 bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-500 focus:border-orange-500"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -231,7 +234,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full h-11 text-base font-medium"
+                className="w-full h-11 text-base font-medium bg-orange-600 hover:bg-orange-700"
                 disabled={loading || googleLoading}
               >
                 {loading ? (
@@ -241,52 +244,34 @@ export default function LoginPage() {
                   </>
                 ) : (
                   <>
-                    Sign in
+                    Start My Shift
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
               </Button>
             </form>
 
-            {/* Register Link */}
-            <p className="text-center text-sm text-muted-foreground pt-2">
-              Don&apos;t have an account?{' '}
-              <Link
-                href="/register"
-                className="text-primary hover:underline font-medium"
-              >
-                Create account
-              </Link>
+            {/* Help Text */}
+            <p className="text-center text-xs text-slate-500 pt-2">
+              Contact your supervisor if you need help accessing your account
             </p>
           </CardContent>
         </Card>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          By signing in, you agree to our{' '}
-          <Link href="/terms" className="underline hover:text-foreground">
-            Terms of Service
-          </Link>{' '}
-          and{' '}
-          <Link href="/privacy" className="underline hover:text-foreground">
-            Privacy Policy
+        {/* Footer Links */}
+        <div className="flex items-center justify-center gap-4 mt-6 text-sm">
+          <Link
+            href="/login"
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            Citizen Login
           </Link>
-        </p>
-
-        {/* Staff Portal Links */}
-        <div className="flex items-center justify-center gap-3 mt-4">
+          <span className="text-slate-600">•</span>
           <Link
             href="/admin/login"
-            className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md border border-transparent hover:border-border transition-all"
+            className="text-slate-400 hover:text-white transition-colors"
           >
-            Admin Portal
-          </Link>
-          <span className="text-muted-foreground/50">•</span>
-          <Link
-            href="/worker/login"
-            className="text-xs text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-md border border-transparent hover:border-border transition-all"
-          >
-            Worker Portal
+            Admin Login
           </Link>
         </div>
       </div>

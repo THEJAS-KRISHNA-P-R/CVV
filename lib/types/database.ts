@@ -36,16 +36,55 @@ export interface Profile {
 export interface Household {
   id: string
   user_id: string
-  qr_code: string
-  location: { lat: number; lon: number }
+  qr_code?: string // Optional - deprecated in favor of GPS anchoring
+  location: { lat: number; lon: number } | string // PostGIS POINT or GeoJSON
   address?: string
   ward?: string
   district: string
   is_verified: boolean
   verified_by?: string
   verified_at?: string
+  // New Home Anchor fields
+  nickname?: string
+  manual_address?: string
+  geocoded_address?: string
+  waste_ready?: boolean
+  ward_number?: number
+  location_updated_at?: string
   created_at: string
   updated_at: string
+}
+
+// Home Anchor Location Types
+export interface GeoCoordinates {
+  lat: number
+  lng: number
+}
+
+export interface HouseholdLocation {
+  id: string
+  userId: string
+  nickname: string
+  manualAddress: string | null
+  geocodedAddress: string | null
+  wasteReady: boolean
+  wardNumber: number | null
+  location: GeoCoordinates
+  locationUpdatedAt: string | null
+  createdAt: string
+}
+
+// Nearest Household (from PostGIS query)
+export interface NearestHousehold {
+  householdId: string
+  userId: string
+  nickname: string
+  manualAddress: string | null
+  wasteReady: boolean
+  wardNumber: number | null
+  distanceMeters: number
+  lat: number
+  lng: number
 }
 
 export interface Signal {
@@ -200,3 +239,123 @@ export interface CreateDeliveryTaskRequest {
   delivery_lon?: number
   notes?: string
 }
+
+// ===========================================
+// CITIZEN LAYER TYPES
+// Public Citizen Layer features
+// ===========================================
+
+export type VerificationStatus = 'pending' | 'verified' | 'rejected'
+
+export type ReportCategory = 
+  | 'dumping' 
+  | 'overflow' 
+  | 'hazardous' 
+  | 'construction_debris' 
+  | 'dead_animal' 
+  | 'other'
+
+export type ReportStatus = 'open' | 'investigating' | 'resolved' | 'rejected'
+
+export type PaymentStatus = 'paid' | 'pending' | 'overdue' | 'waived'
+
+export interface PublicReport {
+  id: string
+  reporter_id: string
+  photo_url: string
+  location: { lat: number; lon: number }
+  ward?: number
+  category: ReportCategory
+  description?: string
+  severity: number // 1-5
+  status: ReportStatus
+  assigned_to?: string
+  resolved_at?: string
+  resolution_notes?: string
+  resolution_photo_url?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UserPayment {
+  id: string
+  household_id: string
+  amount: number
+  month: number
+  year: number
+  status: PaymentStatus
+  transaction_ref?: string
+  payment_method?: string
+  paid_at?: string
+  collected_by?: string
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+// Extended household with verification fields
+export interface HouseholdWithVerification extends Household {
+  verification_status: VerificationStatus
+  anchored_at?: string
+  anchored_by?: string
+  rejection_reason?: string
+}
+
+// Blackspot report request
+export interface CreateBlackspotReportRequest {
+  photo: string // Base64 encoded
+  latitude: number
+  longitude: number
+  category: ReportCategory
+  description?: string
+  severity?: number
+}
+
+// Payment status response
+export interface PaymentStatusData {
+  household_id: string
+  current_month: {
+    month: number
+    year: number
+    month_name: string
+    amount: number
+    status: PaymentStatus
+    due_date: string
+  }
+  summary: {
+    total_pending: number
+    total_overdue: number
+    total_paid_this_year: number
+    last_payment_date: string | null
+  }
+  history: UserPayment[]
+}
+
+// Household verification status response
+export interface HouseholdStatusData {
+  household_id: string
+  qr_code: string
+  verification_status: VerificationStatus
+  can_signal: boolean
+  anchored_at: string | null
+  anchored_by_name: string | null
+  rejection_reason: string | null
+  ward: number | null
+  tc_address: string | null
+}
+
+// Nearby blackspot for workers
+export interface NearbyBlackspot {
+  id: string
+  photo_url: string
+  category: ReportCategory
+  description?: string
+  severity: number
+  status: ReportStatus
+  reporter_name: string
+  created_at: string
+  distance_meters: number
+  latitude: number
+  longitude: number
+}
+
