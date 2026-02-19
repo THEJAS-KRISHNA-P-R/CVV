@@ -143,12 +143,17 @@ export function MarketplaceList() {
                         <Card key={item.id} className="overflow-hidden hover:shadow-lg transition-shadow bg-card">
                             <div className="aspect-video bg-muted flex items-center justify-center relative">
                                 {item.images && item.images.length > 0 ? (
-                                    /* Ideally use Next.js Image with Supabase Storage URL */
-                                    <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${item.images[0]})` }} />
+                                    <div
+                                        className="w-full h-full bg-cover bg-center transition-transform hover:scale-105 duration-300"
+                                        style={{ backgroundImage: `url(${item.images[0]})` }}
+                                    />
                                 ) : (
-                                    <ShoppingCart className="w-12 h-12 text-muted-foreground/30" />
+                                    <div className="flex flex-col items-center justify-center text-muted-foreground/30">
+                                        <ShoppingCart className="w-12 h-12 mb-2" />
+                                        <span className="text-xs">No Image</span>
+                                    </div>
                                 )}
-                                <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                                <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
                                     {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
                                 </div>
                             </div>

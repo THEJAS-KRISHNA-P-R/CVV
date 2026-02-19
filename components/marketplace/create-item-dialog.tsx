@@ -64,6 +64,21 @@ export function CreateItemDialog() {
         },
     })
 
+    const [imageFile, setImageFile] = useState<File | null>(null)
+    const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+    async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0]
+        if (file) {
+            setImageFile(file)
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string)
+            }
+            reader.readAsDataURL(file)
+        }
+    }
+
     async function onSubmit(data: ItemFormValues) {
         setLoading(true)
         try {
@@ -74,7 +89,30 @@ export function CreateItemDialog() {
                 return
             }
 
-            // Check if profile exists and get household info ideally, but here we just insert
+            let imageUrls: string[] = []
+
+            if (imageFile) {
+                const fileExt = imageFile.name.split('.').pop()
+                const fileName = `${user.id}/${Date.now()}.${fileExt}`
+
+                const { error: uploadError, data: uploadData } = await supabase.storage
+                    .from('reports')
+                    .upload(fileName, imageFile)
+
+                if (uploadError) {
+                    console.error('Upload error:', uploadError)
+                    toast.error('Failed to upload image')
+                    // Proceed without image or return? Let's return for now to fail safe.
+                    setLoading(false)
+                    return
+                }
+
+                const { data: { publicUrl } } = supabase.storage
+                    .from('reports')
+                    .getPublicUrl(fileName)
+
+                imageUrls.push(publicUrl)
+            }
 
             const { error } = await supabase
                 .from('marketplace_items')
@@ -85,9 +123,9 @@ export function CreateItemDialog() {
                     category: data.category,
                     quantity: data.quantity,
                     price: data.price,
-                    // We can add location logic later
                     fuzzy_location: data.location || 'Your Area',
                     is_available: true,
+                    images: imageUrls
                 })
 
             if (error) throw error
@@ -95,6 +133,8 @@ export function CreateItemDialog() {
             toast.success('Item listed successfully!')
             setOpen(false)
             form.reset()
+            setImageFile(null)
+            setImagePreview(null)
         } catch (error) {
             console.error('Error creating item:', error)
             toast.error('Failed to create listing')
@@ -111,7 +151,7 @@ export function CreateItemDialog() {
                     List Item
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
                     <DialogTitle>List an Item</DialogTitle>
                     <DialogDescription>
@@ -120,6 +160,41 @@ export function CreateItemDialog() {
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+
+                        {/* Image Upload */}
+                        <div className="flex flex-col gap-2">
+                            <FormLabel>Item Image</FormLabel>
+                            <div className="flex items-center gap-4">
+                                {imagePreview ? (
+                                    <div className="relative w-20 h-20 rounded-md overflow-hidden border">
+                                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="absolute top-0 right-0 h-6 w-6 bg-background/50 hover:bg-background"
+                                            onClick={() => {
+                                                setImageFile(null)
+                                                setImagePreview(null)
+                                            }}
+                                        >
+                                            <div className="h-4 w-4">×</div>
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="w-20 h-20 rounded-md border border-dashed flex items-center justify-center bg-muted/50">
+                                        <ImagePlus className="w-8 h-8 text-muted-foreground/50" />
+                                    </div>
+                                )}
+                                <Input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageChange}
+                                    className="flex-1"
+                                />
+                            </div>
+                        </div>
+
                         <FormField
                             control={form.control}
                             name="title"
