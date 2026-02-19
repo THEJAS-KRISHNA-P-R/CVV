@@ -5,7 +5,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import Groq from '@groq/sdk'
+// @ts-ignore
+import Groq from 'groq-sdk'
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
