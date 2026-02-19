@@ -3,7 +3,7 @@
  * Browser-safe client for real-time features, chat, and messaging
  */
 
-import { createBrowserClient } from '@supabase/ssr'
+import { createBrowserClient } from '@supabase/auth-helpers-nextjs'
 
 export const createClient = () =>
   createBrowserClient(

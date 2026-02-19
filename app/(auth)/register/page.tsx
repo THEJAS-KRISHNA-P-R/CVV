@@ -9,15 +9,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Leaf, MapPin, QrCode } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
-import { toast } from 'sonner'
 
 type RegistrationStep = 'basic' | 'location' | 'qr' | 'review'
 
 interface FormData {
   name: string
   email: string
-  password: string
   phone: string
   ward: string
   qrCode: string
@@ -25,14 +22,12 @@ interface FormData {
 
 export default function RegisterPage() {
   const router = useRouter()
-  const supabase = createClient()
   const [step, setStep] = useState<RegistrationStep>('basic')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
-    password: '',
     phone: '',
     ward: '',
     qrCode: '',
@@ -50,12 +45,8 @@ export default function RegisterPage() {
 
     // Validate current step
     if (step === 'basic') {
-      if (!formData.name || !formData.email || !formData.password || !formData.phone) {
+      if (!formData.name || !formData.email || !formData.phone) {
         setError('Please fill in all required fields')
-        return
-      }
-      if (formData.password.length < 6) {
-        setError('Password must be at least 6 characters')
         return
       }
       setStep('qr')
@@ -77,57 +68,11 @@ export default function RegisterPage() {
     setError('')
 
     try {
-      // 1. Sign up with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.name,
-            phone: formData.phone,
-            ward: formData.ward, // Metadata
-          },
-        },
-      })
-
-      if (authError) throw authError
-      if (!authData.user) throw new Error('Registration failed. Please try again.')
-
-      // 2. Create Profile entry (if not handled by trigger)
-      // Note: Assuming a trigger handles profile creation from auth.users, 
-      // but if not, we should insert into 'profiles' table here.
-      // Checking local schema knowledge: 00001_initial_schema.sql usually has a trigger.
-      // If not, we insert manually. Let's try to insert manually to be safe or explicit updates.
-
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.name,
-          phone: formData.phone,
-          // ward might go to households table or specific column
-        })
-        .eq('id', authData.user.id)
-
-      // If update fails (e.g. row doesn't exist efficiently), we might need to insert. 
-      // But typically handle_new_user trigger exists.
-
-      // Update Household linkage if QR code provided
-      if (formData.qrCode) {
-        // This logic depends on backend implementation of linking QR to household
-      }
-
-      toast.success('Registration successful!', {
-        description: 'Welcome to Nirman.',
-      })
-
+      // TODO: Integrate with Supabase Auth
+      await new Promise((resolve) => setTimeout(resolve, 500))
       router.push('/dashboard')
     } catch (err) {
-      console.error('Registration error:', err)
-      const message = err instanceof Error ? err.message : 'Registration failed'
-      setError(message)
-      toast.error('Registration failed', {
-        description: message,
-      })
+      setError(err instanceof Error ? err.message : 'Registration failed')
     } finally {
       setLoading(false)
     }
@@ -153,7 +98,7 @@ export default function RegisterPage() {
                 className={cn(
                   'h-1 rounded-full transition-colors',
                   ['basic', 'qr', 'location', 'review'].indexOf(step) >=
-                    steps.indexOf(s)
+                  steps.indexOf(s)
                     ? 'bg-primary'
                     : 'bg-muted'
                 )}
@@ -201,18 +146,6 @@ export default function RegisterPage() {
                     value={formData.email}
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
                     }
                   />
                 </div>
