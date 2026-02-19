@@ -1,0 +1,132 @@
+{
+  "common": {
+    "app_name": "Nirman",
+    "tagline": "Smart Waste Management Portal",
+    "next": "Next",
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning"
+  },
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "marketplace": "Marketplace",
+    "chat": "Chat",
+    "profile": "Profile",
+    "segregation": "Segregation",
+    "logout": "Logout",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back, {{name}}!",
+    "next_collection": "Next Collection",
+    "green_credits": "Green Credits",
+    "waste_ready": "Waste Ready",
+    "waste_ready_active": "Waste is ready for collection",
+    "waste_ready_inactive": "Mark waste as ready",
+    "quick_actions": "Quick Actions",
+    "view_schedule": "View Schedule",
+    "report_issue": "Report Issue"
+  },
+  "marketplace": {
+    "title": "Circular Marketplace",
+    "subtitle": "Trade surplus building materials",
+    "search": "Search items...",
+    "filters": "Filters",
+    "categories": {
+      "cement": "Cement",
+      "rebars": "Rebars",
+      "bricks": "Bricks",
+      "sand": "Sand",
+      "paint": "Paint",
+      "wood": "Wood"
+    },
+    "location": "Location",
+    "seller": "Seller",
+    "chat_button": "Chat",
+    "no_items": "No items found",
+    "list_item": "List Item"
+  },
+  "chat": {
+    "title": "Messages",
+    "conversations": "Conversations",
+    "new_message": "New Message",
+    "type_message": "Type a message...",
+    "request_delivery": "Request HKS Delivery",
+    "delivery_requested": "Delivery requested",
+    "send": "Send",
+    "typing": "is typing...",
+    "no_messages": "No messages yet. Start a conversation!"
+  },
+  "segregation": {
+    "title": "Waste Segregation",
+    "subtitle": "AI-powered waste classification",
+    "start_camera": "Start Camera",
+    "stop_camera": "Stop Camera",
+    "capture": "Capture",
+    "wet": "Wet Waste",
+    "dry": "Dry Waste",
+    "hazardous": "Hazardous Waste",
+    "confidence": "Confidence",
+    "scanning": "Scanning...",
+    "camera_permission": "Camera permission required",
+    "allow_camera": "Allow Camera Access",
+    "no_waste_detected": "No waste detected",
+    "recommendations": "Recommendations"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm Password",
+    "name": "Full Name",
+    "phone": "Phone Number",
+    "forgot_password": "Forgot Password?",
+    "no_account": "Don't have an account?",
+    "have_account": "Already have an account?",
+    "sign_up": "Sign Up",
+    "sign_in": "Sign In",
+    "or_continue_with": "Or continue with"
+  },
+  "onboarding": {
+    "title": "Complete Your Profile",
+    "step": "Step {{current}} of {{total}}",
+    "basic_info": "Basic Information",
+    "scan_qr": "Scan House QR",
+    "pick_location": "Pick Location",
+    "review": "Review",
+    "skip": "Skip",
+    "scan_instruction": "Point your camera at your house QR code",
+    "location_instruction": "Select your house location on the map",
+    "ward": "Ward"
+  },
+  "profile": {
+    "title": "Profile",
+    "personal_info": "Personal Information",
+    "household_info": "Household Information",
+    "statistics": "Statistics",
+    "total_waste_collected": "Total Waste Collected",
+    "credits_earned": "Credits Earned",
+    "items_listed": "Items Listed",
+    "edit_profile": "Edit Profile",
+    "change_password": "Change Password",
+    "logout": "Logout"
+  },
+  "errors": {
+    "invalid_email": "Please enter a valid email address",
+    "password_mismatch": "Passwords do not match",
+    "required_field": "This field is required",
+    "network_error": "Network error. Please try again.",
+    "server_error": "Server error. Please try again later.",
+    "unauthorized": "You are not authorized to access this resource"
+  }
+}

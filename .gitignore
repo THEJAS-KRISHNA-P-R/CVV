@@ -1,0 +1,162 @@
+# =====================================================
+# Nirman Smart Waste Management - Git Ignore
+# =====================================================
+
+# v0 runtime files (should only exist in preview, not in git)
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+
+# =====================================================
+# Environment Variables & Secrets
+# =====================================================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+.npmrc
+
+# =====================================================
+# Dependencies
+# =====================================================
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+# =====================================================
+# Next.js Build Output
+# =====================================================
+.next/
+out/
+build/
+dist/
+
+# =====================================================
+# Production
+# =====================================================
+*.tsbuildinfo
+next-env.d.ts
+
+# =====================================================
+# IDE & Editor Files
+# =====================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.DS_Store
+
+# =====================================================
+# OS Files
+# =====================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# =====================================================
+# Logs
+# =====================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# =====================================================
+# Testing & Coverage
+# =====================================================
+coverage/
+*.lcov
+.nyc_output
+.cache
+
+# =====================================================
+# Debug & Profiling
+# =====================================================
+.eslintcache
+*.cpuprofile
+*.heapsnapshot
+
+# =====================================================
+# Temporary Files
+# =====================================================
+*.tmp
+*.temp
+.cache/
+.temp/
+tmp/
+
+# =====================================================
+# Local Database & Supabase
+# =====================================================
+.supabase/
+supabase/.branches/
+supabase/.temp/
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================================================
+# Lock Files (keep pnpm-lock.yaml for consistency)
+# =====================================================
+# Uncomment if you want to ignore lock files
+# package-lock.json
+# yarn.lock
+
+# =====================================================
+# Vercel
+# =====================================================
+.vercel
+
+# =====================================================
+# TypeScript
+# =====================================================
+*.tsbuildinfo
+
+# =====================================================
+# PWA (if using)
+# =====================================================
+**/public/workbox-*.js
+**/public/sw.js
+**/public/worker-*.js
+**/public/fallback-*.js
+
+# =====================================================
+# Miscellaneous
+# =====================================================
+.turbo
+.contentlayer
+.docusaurus
+
+# =====================================================
+# Keep These Files
+# =====================================================
+!.env.example
+!.vscode/settings.json
+!public/.gitkeep
