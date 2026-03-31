@@ -254,49 +254,6 @@ export function LocationStatusCard({
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
         </div>
 
-        {/* Waste Ready Toggle - The Digital Bell */}
-        <div className={cn(
-          'p-4 rounded-lg border-2 transition-colors',
-          household.wasteReady 
-            ? 'bg-green-50 dark:bg-green-950 border-green-500' 
-            : 'bg-muted/50 border-transparent'
-        )}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                'w-10 h-10 rounded-full flex items-center justify-center transition-colors',
-                household.wasteReady 
-                  ? 'bg-green-100 dark:bg-green-900' 
-                  : 'bg-muted'
-              )}>
-                {household.wasteReady ? (
-                  <Bell className="w-5 h-5 text-green-600 dark:text-green-400 animate-pulse" />
-                ) : (
-                  <BellOff className="w-5 h-5 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <p className={cn(
-                  'font-medium',
-                  household.wasteReady && 'text-green-700 dark:text-green-300'
-                )}>
-                  {household.wasteReady ? 'Waste Ready!' : 'Waste Not Ready'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {household.wasteReady 
-                    ? 'Collection worker can see your signal' 
-                    : 'Toggle when waste is ready for pickup'
-                  }
-                </p>
-              </div>
-            </div>
-            <Switch
-              checked={household.wasteReady}
-              onCheckedChange={toggleWasteReady}
-              disabled={togglingWasteReady}
-            />
-          </div>
-        </div>
       </CardContent>
     </Card>
   )

@@ -65,15 +65,49 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       )
     }
+
+    // Determine whose household to look up:
+    // - Workers/admins can pass ?user_id= to check any citizen's payment
+    // - Citizens always see their own
+    const { searchParams } = new URL(request.url)
+    const targetUserId = searchParams.get('user_id')
+
+    let lookupUserId = user.id // default: self
+
+    if (targetUserId && targetUserId !== user.id) {
+      // Verify caller is worker or admin
+      const { data: callerProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (callerProfile && ['worker', 'admin'].includes(callerProfile.role)) {
+        lookupUserId = targetUserId
+      }
+    }
     
-    // Get user's household
-    const { data: household, error: householdError } = await supabase
+    // Get target user's household (handle verification_status column gracefully)
+    let household: { id: string } | null = null
+    const { data: hFull, error: hFullErr } = await supabase
       .from('households')
       .select('id, verification_status')
-      .eq('user_id', user.id)
+      .eq('user_id', lookupUserId)
       .single()
+
+    if (!hFullErr && hFull) {
+      household = hFull
+    } else {
+      // Fallback without verification_status column
+      const { data: hBasic } = await supabase
+        .from('households')
+        .select('id')
+        .eq('user_id', lookupUserId)
+        .single()
+      household = hBasic
+    }
     
-    if (householdError || !household) {
+    if (!household) {
       return NextResponse.json<PaymentStatusResponse>(
         { success: false, error: 'No household registered. Please register your household first.' },
         { status: 404 }
@@ -202,11 +236,11 @@ export async function POST(request: NextRequest) {
     // Check if user is admin or worker
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('user_role')
+      .select('role')
       .eq('id', user.id)
       .single()
     
-    if (profileError || !['admin', 'worker'].includes(profile?.user_role)) {
+    if (profileError || !['admin', 'worker'].includes(profile?.role)) {
       return NextResponse.json(
         { success: false, error: 'Only administrators and workers can record payments' },
         { status: 403 }
@@ -215,12 +249,42 @@ export async function POST(request: NextRequest) {
     
     // Parse request body
     const body = await request.json()
-    const { household_id, amount, month, year, payment_method, transaction_ref, notes } = body
+    let {
+      household_id,
+      user_id: targetUserId,
+      amount,
+      month,
+      year,
+      payment_method,
+      method,       // alias accepted from frontend
+      transaction_ref,
+      notes,
+    } = body
+
+    // If household_id not provided but user_id is, look it up
+    if (!household_id && targetUserId) {
+      const { data: hh } = await supabase
+        .from('households')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .single()
+      household_id = hh?.id
+    }
+
+    // Support "YYYY-MM" string for month field
+    if (typeof month === 'string' && month.includes('-')) {
+      const parts = month.split('-')
+      year = year || parseInt(parts[0], 10)
+      month = parseInt(parts[1], 10)
+    }
+
+    // Use method as fallback for payment_method
+    payment_method = payment_method || method || 'cash'
     
     // Validate required fields
     if (!household_id || !amount || !month || !year) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: household_id, amount, month, year' },
+        { success: false, error: 'Missing required fields: household_id (or user_id), amount, month, year' },
         { status: 400 }
       )
     }
@@ -234,7 +298,7 @@ export async function POST(request: NextRequest) {
         month,
         year,
         status: 'paid',
-        payment_method: payment_method || 'cash',
+        payment_method,
         transaction_ref,
         paid_at: new Date().toISOString(),
         collected_by: user.id,

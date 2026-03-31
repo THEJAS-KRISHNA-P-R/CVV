@@ -5,7 +5,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-// @ts-ignore
 import Groq from 'groq-sdk'
 
 const groq = new Groq({
